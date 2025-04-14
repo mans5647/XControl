@@ -13,5 +13,4 @@ CMakeUserPresets.json
 build/** */
 
 *.env
-*.txt
 *.tar
