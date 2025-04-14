@@ -1,0 +1,35 @@
+services:
+  xserver:
+    build: .
+    restart: always
+    depends_on:
+      - database
+    ports:
+      - "10013:10013"
+    volumes:
+      - golang_data:/go_server_data
+
+
+  database:
+    image: postgres:latest
+    restart: always 
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password123
+      - POSTGRES_DB=x_db
+    ports:
+      - "10016:5432"
+    volumes:
+      - golang_data:/var/lib/postgres
+
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "10090:8080"
+    volumes:
+      - golang_data:/var/lib/adminer
+
+volumes:
+  golang_data:
