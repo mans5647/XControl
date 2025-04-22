@@ -22,6 +22,7 @@ struct fbuf
 {
     char * data;
     uint32_t bytes;
+    uint32_t capacity;
 };
 
 typedef struct      fbuf    fbuf_t;

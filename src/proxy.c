@@ -136,7 +136,7 @@ int PostProcesses(void * arg)
     long * client_id = arg;
 
     char * url = StringFmt("%s/update_processes/%di", BASE_ADDR(), *client_id);
-
+    
     HttpClientSetUrl(http_client, url);
 
     free(url);
@@ -346,33 +346,23 @@ boolean check_command_already_failed(int cmd)
 char * create_endpoint(const char * relative_format, ...)
 {
     va_list ap;
-    char * url = NULL;
-    char * buf = NULL;
+    char * url;
+    char * buf;
 
 
     va_start(ap, relative_format);
     buf = StringFmt(relative_format, va_arg(ap, void*));
 
-    if (!buf) {
-        goto done;
-    }
-
-    size_t BaseAddressSize = sizeof(BASE_ADDR()) - 1;
-    size_t BufferSize = strlen(buf);
-    size_t TotalSize = BaseAddressSize + BufferSize + 1;
-
-    url = AllocCount(char, TotalSize);
-
-    if (!url) {
-        goto done;
-    }
-
-    memcpy(url, BASE_ADDR(), BaseAddressSize);
-    memcpy(url + BaseAddressSize, buf, BufferSize);
-    url[TotalSize] = '\0';
+    size_t s1 = sizeof(BASE_ADDR()) - 1;
+    size_t s2 = strlen(buf);
+    size_t s3 = s1 + s2 + 1;
+    
+    url = (char*)malloc(s3);
+    (*url) = '\0';
+    strcat(url, BASE_ADDR());
+    strcat(url, buf);
+    url[s3 - 1] = '\0';
     va_end(ap);
-
-done:
     free(buf);
     return url;
 }
@@ -499,7 +489,7 @@ poll_code_t do_poll(HttpClient * const http_client, const char * uri, int cmd)
         char * message = FormatWinError(GetLastErrorWin32());
         printf("(poll) executing system command was failed: %s\n", message);
         
-        free(message);
+        FreeMessage(message);
         update_command(cmd, CMD_STATUS_SYSTEM_ERROR);
         
         code = POLL_FAILED_WIN32;
@@ -575,7 +565,6 @@ typedef struct client
 char * ClientToJSON(const pclient_t client)
 {
     cJSON * obj = cJSON_CreateObject();
-    
     cJSON_AddStringToObject(obj, "desktop_name", client->desktop_name);
     cJSON_AddNumberToObject(obj, "cl_id", client->id);
     cJSON_AddStringToObject(obj, "remote_addr", client->remote_addr);
@@ -637,17 +626,16 @@ pclient_t RegisterClient()
     client.id = ZERO;
     client.remote_addr = NULL;
     client.update_time = time(NULL);
-    
     char * json = ClientToJSON(&client);
 
     char * url = StringFmt("%s/register_client",BASE_ADDR());
-
     HttpClientSetUrl(http_client, url);
     HttpClientSetDataSent(http_client, json, strlen(json), false);
 
     HttpClientPerform(http_client);
-
+    
     long sc = HttpClientGetResponseCode(http_client);
+    
     pclient_t added_client = NULL;
     
     if (sc == HTTP_OK)
@@ -679,7 +667,6 @@ int ClientKeepAlive(void * ctx)
 
 
     url = create_endpoint("/keep_alive");
-
     if (!url) {
         goto done;
     }

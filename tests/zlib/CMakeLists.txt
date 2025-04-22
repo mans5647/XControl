@@ -43,7 +43,6 @@ target_include_directories(${E_SCREEN_APP} PRIVATE ${ZLIB_INCLUDE_DIR})
 target_link_libraries(${E_SCREEN_APP} PRIVATE cjson)
 target_link_libraries(${E_SCREEN_APP} PRIVATE ${libz_var})
 
-install(TARGETS ${E_SCREEN_APP})
 
 
 add_test(NAME ${EXE_NAME} COMMAND ${CMAKE_INSTALL_BINDIR}/${EXE_NAME})

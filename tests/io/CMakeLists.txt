@@ -14,7 +14,7 @@ target_include_directories(${EXE_NAME} PRIVATE ${HEADERS})
 target_include_directories(${EXE_NAME} PRIVATE ${CJSON_INCLUDE_DIR})
 
 target_link_libraries(${EXE_NAME} PRIVATE cjson)
-install(TARGETS ${EXE_NAME})
+
 
 
 

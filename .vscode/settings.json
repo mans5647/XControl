@@ -49,7 +49,15 @@
         "ratio": "c",
         "stdio.h": "c",
         "file_util.h": "c",
-        "thutil.h": "c"
+        "thutil.h": "c",
+        "curlhelper.h": "c"
     },
-    "C_Cpp.errorSquiggles": "enabled"
+    "C_Cpp.errorSquiggles": "enabled",
+    "cmake.configureSettings": {
+        "OPENSSL_ROOT_DIR": "C:\\Users\\mansu\\ssldir",
+        "ZLIB_ROOT": "C:\\Users\\mansu\\zlibdir\\library",
+        "BUILD_SHARED_LIBS": "false",
+        "ZLIB_STATIC": true,
+        "CMAKE_BUILD_TYPE": "Debug"
+    }
 }

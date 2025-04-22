@@ -36,7 +36,7 @@
             "name": "main app",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/myabc_out/bin/myabc.exe",
+            "program": "${workspaceFolder}/build/XControlAgent.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

@@ -8,6 +8,7 @@
 void fbuf_init(fbuf_ptr value)
 {
     value->bytes = 0;
+    value->capacity = 0;
     value->data = NULL;
 }
 

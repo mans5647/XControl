@@ -12,3 +12,8 @@ char * FormatWinError(uint32_t err)
 
     return buf;
 }
+
+void FreeMessage(void * buf)
+{
+    LocalFree(buf);
+}

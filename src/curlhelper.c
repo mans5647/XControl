@@ -3,7 +3,6 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include "util.h"
 #include "types.h"
 #include "my_string.h"
 #include "curlhelper.h"
@@ -50,8 +49,8 @@ void AddHeader(HttpClient * const p, void * buf)
 HttpClient * NewSSLClient()
 {
     static const char *pCertFile = "cert.pem";
-
-    HttpClient * cl = NewMemory(HttpClient, sizeof(HttpClient));
+    
+    HttpClient * cl = malloc(sizeof(HttpClient));
     cl->handle = curl_easy_init();
     if (!cl->handle) 
     {
@@ -61,7 +60,7 @@ HttpClient * NewSSLClient()
 
     cl->headers = NULL;
     cl->last_error = CURLE_OK;
-    cl->buf = NewMemory(struct Buffer, sizeof(struct Buffer));
+    cl->buf = malloc(sizeof(struct Buffer));
     cl->buf->data = NULL;
     cl->buf->size = 0;
 

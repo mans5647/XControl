@@ -13,6 +13,7 @@
 #include "win_misc.h"
 #include "proxy_info.h"
 #include "my_string.h"
+#include "curlhelper.h"
 #include "thutil.h"
 
 
@@ -266,7 +267,7 @@ int StartApplicationLoop(integer_t argc, char ** argv)
     }
 
     InitCurl();
-
+    
     client = RegisterClient();
 
     if (client == NULL) {

@@ -519,7 +519,9 @@ void string_copy(pstring_t * from, pstring_t * to)
 
 }
 
-void _put_buf(char value, void * buffer, size_t index, size_t max_len) {
+#include "file_util.h"
+
+void _put_buf(char value, void * buffer, const size_t index, const size_t max_len) {
 
     if (index < max_len) {
         ((char*)buffer)[index] = value;
@@ -527,20 +529,22 @@ void _put_buf(char value, void * buffer, size_t index, size_t max_len) {
     
 }
 
-#define CHUNK_SIZE 5
+#define CHUNK_SIZE 20
 
-void _append_realloc(char ** buf, char byte, size_t * size, size_t * capacity) {
+void append_or_realloc(fbuf_ptr buf, char byte) {
 
-    if (!buf) {
-        (*buf) = DataReallocCount(char, *capacity, NULL);
-
-    } else if (size >= capacity) {
-        (*capacity) += CHUNK_SIZE;
-        (*buf) = DataReallocCount(char, *capacity, *buf);
+    if (buf->data == NULL) {
+        buf->capacity += CHUNK_SIZE;
+        buf->data = realloc(NULL, buf->capacity + 1);
     }
 
-    _put_buf(byte, (void*)*buf, (*size), (size_t) - 1);
-    (*size) += 1;
+    else if (buf->bytes >= buf->capacity) {
+        buf->capacity += CHUNK_SIZE;
+        buf->data = realloc(buf->data, buf->capacity + 1);
+    }
+
+    buf->data[buf->bytes] = byte;
+    buf->bytes++;
 }
 
 size_t _size_t_reverse(size_t value)
@@ -573,45 +577,45 @@ int _int_reverse(int value)
     return nvalue;
 }
 
-void _size_t_2_bytes_apnd(const size_t * value, char ** buf, size_t * s, size_t * c) {
+void _size_t_2_bytes_apnd(const size_t * value, fbuf_ptr buf) {
 
     size_t copy = _size_t_reverse(*value);
 
     do {
         char digit = (char)(copy % 10);
         digit = digit < 10 ? '0' + digit : digit - 10;
-        _append_realloc(buf, digit, s, c);
+        append_or_realloc(buf, digit);
         copy /= 10;
     } while (copy);
 
 }
 
-void _int_to_bytes_apnd(const int * value, char ** buf, size_t * s, size_t * c)
+void _int_to_bytes_apnd(const int * value, fbuf_ptr buf)
 {
     int copy = _int_reverse(*value);
     do {
         char digit = (char)(copy % 10);
         digit = digit < 10 ? '0' + digit : digit - 10;
-        _append_realloc(buf, digit, s, c);
+        append_or_realloc(buf, digit);
         copy /= 10;
     } while (copy);   
 }
  
-#define MIN_CAPACITY 200
+
 
 char * StringFmt(const char * fmt, ...)
 {
-    char * buf = NULL;
+    fbuf_t buf;
     va_list va;
-    size_t capacity = MIN_CAPACITY, size = 0;
 
+    fbuf_init(&buf);
     va_start(va, fmt);
 
     while (*fmt)
     {
         if (*fmt != '%') 
         {
-            _append_realloc(&buf, *fmt, &size, &capacity);
+            append_or_realloc(&buf, *fmt);
             fmt++;
             continue;
         } else {
@@ -621,6 +625,7 @@ char * StringFmt(const char * fmt, ...)
         switch (*fmt)
         {
             case 'u':
+            {
                 if (*(fmt + 1) == 's') {
                     const pstring_t _ustr = va_arg(va, pstring_t);
                     char * _dat = GetNullTerminatedBytes(_ustr);
@@ -628,55 +633,58 @@ char * StringFmt(const char * fmt, ...)
                     
                     while (_len)
                     {
-                        _append_realloc(&buf, (*_dat), &size, &capacity);
+                        append_or_realloc(&buf, (*_dat));
                         _dat++;
                         _len--;
                     }
+
+                    free(_dat);
                     fmt += 2;
                 }
+
                 break;
-            case 's':
 
-            const char * _dat = va_arg(va, const char*);
+            } case 's': {
+                const char * _dat = va_arg(va, const char*);
+                size_t _len = strlen(_dat);
 
-            size_t _len = strlen(_dat);
+                while (_len)
+                {
+                    append_or_realloc(&buf, (*_dat));
+                    _dat++;
+                    _len -= 1;
+                }
 
-            while (_len)
-            {
-                _append_realloc(&buf, (*_dat), &size, &capacity);
-                _dat++;
-                _len--;
-            }
-
-            fmt++;
-            break;
-
-            case 'd':
-
+                fmt += 1;
+                break;
+                
+            } case 'd': {
                 size_t off = 1;
                 if (*(fmt + 1) == 'z') {
                     const size_t _sz = va_arg(va, size_t);
-                    _size_t_2_bytes_apnd(&_sz, &buf, &size, &capacity);
+                    _size_t_2_bytes_apnd(&_sz, &buf);
                     off = 2;
                 }
+
                 else if (*(fmt + 1) == 'i') {
                     const int _val_int = va_arg(va, int);
-                    _int_to_bytes_apnd(&_val_int, &buf, &size, &capacity);
+                    _int_to_bytes_apnd(&_val_int, &buf);
                     off = 2;
                 }
 
                 fmt += off;
 
-            break;
+                break;
+            }
 
             default:
-                _append_realloc(&buf, *fmt, &size, &capacity);
+                append_or_realloc(&buf, *fmt);
                 fmt++;
         }
 
     }
 
     va_end(va);
-    buf[size] = '\0';
-    return buf;
+    buf.data[buf.bytes] = '\0';
+    return buf.data;
 }

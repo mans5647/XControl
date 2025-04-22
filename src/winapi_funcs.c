@@ -663,10 +663,13 @@ char * ReadFileAllWin32(void * fileHandle, size_t * out_siz)
 
 wchar_t * GetTempFolderPathWin32()
 {
-    DWORD length = MAX_PATH + 1;
+    DWORD length = MAX_PATH + 1, copied;
     WCHAR * path = AllocCount(WCHAR, length);
-    if (GetTempPathW(length, path) > ZERO) {
-        path[length] = L'\0';
+    
+    copied = GetTempPathW(length, path);
+
+    if (copied > ZERO) {
+        path[copied] = '\0';
         return path;
     }
 

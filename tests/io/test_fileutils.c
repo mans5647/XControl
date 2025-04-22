@@ -10,7 +10,7 @@ int main(int argc, char ** argv)
     
     fbuf_init(&buf);
 
-    path_to_exe = exe_dir();
+    path_to_exe = current_dir();
 
     full_path = concat_filename(path_to_exe, filename);
     err = read_file(&buf, full_path);

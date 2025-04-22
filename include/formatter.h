@@ -4,4 +4,6 @@
 
 char * FormatWinError(uint32_t err);
 
+void FreeMessage(void *buf);
+
 #endif
