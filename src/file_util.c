@@ -14,17 +14,15 @@ void fbuf_init(fbuf_ptr value)
 
 fbuf_ptr fbuf_new_with_size(uint32_t bytes)
 {
+    (void)bytes;
+
     fbuf_ptr value = AllocCount(fbuf_t, 1);
 
     if (!value) return NULL;
 
-    value->data = AllocCount(char, bytes);
-    if (!value->data) {
-        free(value);
-        return NULL;
-    }
-
-    value->bytes = bytes;
+    value->data = NULL;
+    value->bytes = 0;
+    value->capacity = 0;
     return value;
 }
 
@@ -89,7 +87,8 @@ int read_file(fbuf_ptr buffer, const wchar_t* filename)
 
     void * fileHandle = OpenFileWin32(filename);
 
-    if (!fileHandle) {
+    if (fileHandle == INVALID_HANDLE_VALUE) {
+        
         return FBUF_IO_ERR;
     }
 
@@ -101,6 +100,8 @@ int read_file(fbuf_ptr buffer, const wchar_t* filename)
 
     buffer->data = data;
     buffer->bytes = file_size;
+
+    CloseFileWin32(fileHandle);
 
     return FBUF_NO_ERR;
 }

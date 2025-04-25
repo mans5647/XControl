@@ -81,6 +81,18 @@
             "console": "integratedTerminal",
             
         },
+        {
+            "name": "test app (winapi, get services)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/tests/api/test_get_services.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "console": "integratedTerminal",
+            
+        },
 
     ]
 }

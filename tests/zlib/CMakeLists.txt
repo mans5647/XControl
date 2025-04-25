@@ -20,11 +20,6 @@ target_include_directories(${EXE_NAME} PRIVATE ${ZLIB_INCLUDE_DIR})
 target_link_libraries(${EXE_NAME} PRIVATE cjson)
 target_link_libraries(${EXE_NAME} PRIVATE ${libz_var})
 
-install(TARGETS ${EXE_NAME})
-
-
-
-
 
 add_executable(${E_SCREEN_APP} test_compress_screen.c)
 

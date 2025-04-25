@@ -251,3 +251,5 @@ install(TARGETS ${PROGRAM_NAME}
     ARCHIVE DESTINATION lib/static
 )
 install(FILES $<TARGET_RUNTIME_DLLS:${PROGRAM_NAME}> TYPE BIN)
+
+add_subdirectory(tests)

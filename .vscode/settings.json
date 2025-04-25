@@ -50,7 +50,9 @@
         "stdio.h": "c",
         "file_util.h": "c",
         "thutil.h": "c",
-        "curlhelper.h": "c"
+        "curlhelper.h": "c",
+        "keyboard_hook.h": "c",
+        "json_util.h": "c"
     },
     "C_Cpp.errorSquiggles": "enabled",
     "cmake.configureSettings": {

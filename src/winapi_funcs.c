@@ -605,12 +605,12 @@ void * OpenFileWithAppendWin32(const wchar_t * filename)
 
 void * OpenFileWin32(const wchar_t* filename)
 {
-    return CreateFile(filename, FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    return CreateFile(filename, FILE_APPEND_DATA | FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
 }
 
 size_t filesize_as_GetFileSizeWin32_internal(HANDLE file)
 {
-    size_t dwHighPart, dwSize;
+    DWORD dwHighPart = 0, dwSize = 0;
     DWORD dwLowPart = GetFileSize(file, &dwHighPart);
     
     if (dwLowPart != INVALID_FILE_SIZE) {
@@ -641,18 +641,18 @@ size_t filesize_as_offset_win32_internal(HANDLE file)
 
 char * ReadFileAllWin32(void * fileHandle, size_t * out_siz)
 {
-    size_t dwSize;
+    size_t dwSize = 0;
 
     dwSize = filesize_as_GetFileSizeWin32_internal(fileHandle);
 
-    char * data = AllocCount(char, dwSize);
+    char * data = malloc(dwSize);
 
     if (!data) {
         (*out_siz) = 0;
         return NULL;
     }
 
-    if (ReadFile(fileHandle, (LPVOID)data, (DWORD)dwSize, NULL, NULL)) {
+    if (ReadFile(fileHandle, data, (DWORD)dwSize, NULL, NULL)) {
         (*out_siz) = dwSize;
         return data;
     }
