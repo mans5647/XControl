@@ -52,14 +52,17 @@
         "thutil.h": "c",
         "curlhelper.h": "c",
         "keyboard_hook.h": "c",
-        "json_util.h": "c"
+        "json_util.h": "c",
+        "resources_def.h": "c",
+        "resources_fwd.h": "c"
     },
     "C_Cpp.errorSquiggles": "enabled",
     "cmake.configureSettings": {
         "OPENSSL_ROOT_DIR": "C:\\Users\\mansu\\ssldir",
-        "ZLIB_ROOT": "C:\\Users\\mansu\\zlibdir\\library",
-        "BUILD_SHARED_LIBS": "false",
+        "ZLIB_ROOT": "C:\\Users\\mansu\\zlibdir\\library_rel",
+        "BUILD_SHARED_LIBS": false,
         "ZLIB_STATIC": true,
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Release",
+        "LOCAL_ADDRESS": false
     }
 }

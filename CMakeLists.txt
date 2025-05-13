@@ -6,11 +6,19 @@ cmake_policy(SET CMP0074 NEW)
 set(CMAKE_GENERATOR "Ninja")
 
 
-set(PROGRAM_NAME XControlAgent)
 
+
+if (LOCAL_ADDRESS)
+    set(PROGRAM_NAME XControlAgent_local)
+else()
+    set(PROGRAM_NAME XControlAgent_remote)
+endif()
 
 project(XControlAgent LANGUAGES C)
 
+
+set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/${PROGRAM_NAME}_out" CACHE PATH "" FORCE)
+set(CMAKE_INSTALL_BINDIR ${CMAKE_INSTALL_PREFIX}/bin)
 
 enable_testing()
 
@@ -167,7 +175,6 @@ if (ZLIB_ROOT)
             
         endforeach()
     endif()
-    
     # search for import lib and dll
     if (NOT ZLIB_STATIC)
         message("Configuring shared ZLIB")
@@ -185,8 +192,8 @@ if (ZLIB_ROOT)
         find_library(ZLIB_LIBRARY NAMES ${ZLIB_NAMES} HINTS ${ZLIB_ROOT} PATH_SUFFIXES "lib" NO_DEFAULT_PATH)
         if (ZLIB_LIBRARY)
             message("Static zlib: ${ZLIB_LIBRARY}")
+            target_link_libraries(${PROGRAM_NAME} PRIVATE ${ZLIB_LIBRARY})
         endif()
-        target_link_libraries(${PROGRAM_NAME} PRIVATE ${ZLIB_LIBRARY})
 
     endif()
 
@@ -241,9 +248,17 @@ target_include_directories(${PROGRAM_NAME} PRIVATE ${libevent_include})
 target_link_libraries(${PROGRAM_NAME} PRIVATE event)
 
 
-set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/${PROGRAM_NAME}_out" CACHE PATH "" FORCE)
-set(CMAKE_INSTALL_BINDIR ${CMAKE_INSTALL_PREFIX}/bin)
 
+
+
+# macros
+
+if (LOCAL_ADDRESS)
+    message("Using local address ...")
+    target_compile_definitions(${PROGRAM_NAME} PRIVATE -DUSE_LOCAL)
+else()
+    message("Using remote address ...")
+endif()
 
 install(TARGETS ${PROGRAM_NAME}
     RUNTIME DESTINATION bin

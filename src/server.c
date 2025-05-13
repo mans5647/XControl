@@ -100,27 +100,6 @@ void HttpReplyShutdownSystem(struct evhttp_request * req, void * userdata)
 
 static void _answer_cpu_memory_usage_impl(struct evhttp_request * req)
 {
-    resource_stats_t stats;
-    if (collect_resource_stats(&stats)){
-
-        byte * dat = resource_stats_to_json(&stats);
-
-        if (dat) {
-
-            struct evbuffer* resp = evbuffer_new();
-            evbuffer_add(resp, dat, strlen(dat));
-            
-            evhttp_send_reply(req, HTTP_OK, NULL, resp);
-            evbuffer_free(resp);
-            free(dat);
-
-            return;
-        }
-
-    }
-
-    evhttp_send_error(req, HTTP_INTERNAL,NULL);
-
 }
 
 static void _send_kb_log_impl(struct evhttp_request * req)

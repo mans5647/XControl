@@ -1,22 +1,32 @@
 
-# test read, write api
-set(EXE_NAME_GET_SERVICES test_get_services)
-add_executable(${EXE_NAME_GET_SERVICES} win_api_get_services.c)
+
 
 set(HEADERS ${PARENT_INCLUDE_DIR})
 
-target_sources(${EXE_NAME_GET_SERVICES} PRIVATE
-    "${PARENT_SOURCE_DIR}/file_util.c"
+
+function(CONFIGURE_EXE exe_name filename)
+    add_executable(${exe_name} ${filename})
+    
+    set(SOURCES "${PARENT_SOURCE_DIR}/file_util.c"
     "${PARENT_SOURCE_DIR}/winapi_funcs.c"
     "${PARENT_SOURCE_DIR}/string.c"
-    "${PARENT_SOURCE_DIR}/OSInfo.c")
+    "${PARENT_SOURCE_DIR}/OSInfo.c"
+    "${PARENT_SOURCE_DIR}/resource_monitor.c")
 
-target_include_directories(${EXE_NAME_GET_SERVICES} PRIVATE ${HEADERS})
-target_include_directories(${EXE_NAME_GET_SERVICES} PRIVATE ${CJSON_INCLUDE_DIR})
+    target_sources(${exe_name} PRIVATE ${SOURCES})
+    
+    # own include dir
+    target_include_directories(${exe_name} PRIVATE ${HEADERS})
+    
+    # cjson include
+    target_include_directories(${exe_name} PRIVATE ${CJSON_INCLUDE_DIR})
 
-target_link_libraries(${EXE_NAME_GET_SERVICES} PRIVATE cjson)
+    target_link_libraries(${exe_name} PRIVATE cjson)
+    add_test(NAME test_${exe_name} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${exe_name})
 
+endfunction()
 
+configure_exe(test_get_services win_api_get_services.c)
+configure_exe(test_get_osinfo win_api_test_OSInfo.c)
+configure_exe(test_runprocess winapi_run_process.c)
 
-
-add_test(NAME test_get_services COMMAND ${CMAKE_INSTALL_BINDIR}/${EXE_NAME_GET_SERVICES})

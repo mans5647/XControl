@@ -43,6 +43,29 @@ void fbuf_clear(fbuf_ptr ptr)
     ptr->bytes = 0;
 }
 
+int fbuf_init2(fbuf_ptr b)
+{
+    char * d = malloc(FBUF_CHUNK_SIZE);
+    if (!d) return 1;
+    
+    b->bytes = 0;
+    b->capacity = FBUF_CHUNK_SIZE;
+    b->data = d;
+    return 0;
+}
+
+void fbuf_append(fbuf_ptr buf, char * data, uint32_t size)
+{
+    size_t newlen = buf->bytes + size;
+    if (newlen >= buf->capacity) {
+        buf->capacity = buf->capacity + newlen;
+        buf->data = realloc(buf->data, buf->capacity);
+    }
+
+    memcpy(buf->data + buf->bytes, data, size);
+    buf->bytes += size;
+}
+
 wchar_t *current_dir()
 {
     wchar_t* path;
@@ -65,11 +88,12 @@ wchar_t *exe_dir()
     
     while (exePath[--dwChars] != L'\\')
     {
-        exePath[dwChars] = '\0';
+        exePath[dwChars] = L'\0';
     }
 
     return exePath;
 }
+
 
 wchar_t * concat_filename(wchar_t * path, const wchar_t * filename)
 {

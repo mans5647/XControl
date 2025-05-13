@@ -1,4 +1,5 @@
 #include "resource_monitor.h"
+#include "resources_def.h"
 #include <time.h>
 #include <cJSON.h>
 #include <windows.h>
@@ -13,7 +14,7 @@ static integer_t calculate_cpu_usage(len_t prev_total, len_t prev_idle, len_t cu
 }
 
 // Сбор данных об использовании CPU
-boolean collect_cpu_usage(cpu_usage_t* cpu) {
+boolean collect_cpu_usage(struct cpu_usage * cpu) {
     if (cpu == nil) return false;
 
     FILETIME idle_time, kernel_time, user_time;

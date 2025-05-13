@@ -16,6 +16,13 @@ boolean CreateNewThread(proc_t func, void* arg)
     return true;
 }
 
+int ThreadWaitForFinish(thrd_t thread)
+{
+    int res;
+    thrd_join(thread, &res);
+    return res;
+}
+
 void ThreadSleepSeconds(uint32_t seconds)
 {
     thrd_sleep(&(struct timespec){.tv_sec = seconds}, NULL);

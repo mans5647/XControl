@@ -93,6 +93,31 @@
             "console": "integratedTerminal",
             
         },
+        {
+            "name": "test app (winapi, get OSInfo)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/tests/api/test_get_osinfo.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "console": "integratedTerminal",
+            
+        },
+
+        {
+            "name": "test app (winapi, run process)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/tests/api/test_runprocess.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "console": "integratedTerminal",
+            
+        },
 
     ]
 }

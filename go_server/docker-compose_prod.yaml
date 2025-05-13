@@ -1,7 +1,7 @@
 services:
   xserver:
     container_name: xserver
-    build: .
+    image: go_server-xserver:latest
     restart: always
     depends_on:
       - database

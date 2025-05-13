@@ -250,48 +250,54 @@ void CreateWideCharInplace(pcharacter ch_, const wchar_t ch)
         return;
     }
 
-    data[szBytes] = '\0';
+    data[bytes] = '\0';
     ch_->data = data;
     ch_->len = (tiny_t)totalAlloc;
     ch_->len_encoded = (tiny_t)szBytes;
-}
-
-pstring_t CreateStringFromWideChars(const wchar_t * data, len_t size)
-{
-    if (size == 0) return NULL;
-
-    pstring_t str = (pstring_t)malloc(sizeof(string_t));
-    
-    str->Capacity = 0;
-    str->CurrentSize = 0;
-    str->data = NULL;
-    str->currentEncoding = UTF_8;
-
-    len_t bytes_alloc = size * 2;
-
-    str->data = AllocCount(character_t, bytes_alloc);
-
-    if (!str->data)
-    {
-        StringDestroy(str);
-        return NULL;
-    }
-
-    for (size_t k = 0; k < size; k++)
-    {
-        CreateWideCharInplace(&str->data[k], data[k]);
-        str->CurrentSize += 1;
-    }
-
-    str->Capacity = bytes_alloc;
-
-    return str;
 }
 
 len_t CalcNewCapacity(len_t old_capacity, len_t new_size)
 {
     return old_capacity + (new_size - old_capacity) * 2;
 }
+
+pstring_t CreateStringFromWideChars(const wchar_t * data, len_t size)
+{
+    pstring_t str;
+    pcharacter utf;
+    len_t capacity;
+
+
+    if (size == 0) return NULL;
+
+    str = (pstring_t)malloc(sizeof(string_t));
+
+    if (!str) return NULL;
+
+    capacity = CalcNewCapacity(0, size);
+    // allocate UTF-8 buffer
+    utf = AllocCount(character_t, capacity);
+
+    if (!utf)
+    {
+        free(str);
+        return NULL;
+    }
+
+    for (size_t k = 0; k < size; k++)
+    {
+        CreateWideCharInplace(&utf[k], data[k]);
+    }
+
+    str->data = utf;
+    str->Capacity = capacity;
+    str->CurrentSize = size;
+    str->currentEncoding = UTF_8;
+
+    return str;
+}
+
+
 
 void StringAppend(pstring_t * dst, const pstring_t str)
 {
@@ -481,17 +487,19 @@ void CharacterDestroy(pcharacter ch)
 
 void StringDestroy(pstring_t value)
 {
-    if (value == NULL) return;
-    
-    pcharacter ch = value->data;
 
-    for (int i = 0; i < value->CurrentSize; i++)
-    {
-        CharacterDestroy(ch);
-        ch++;
+    if (value) {
+        pcharacter ch = value->data;
+
+        for (int i = 0; i < value->CurrentSize; i++)
+        {
+            CharacterDestroy(ch);
+            ch++;
+        }
+
+        free(value->data);
     }
-
-    free(value->data);
+        
     free(value);
 }
 

@@ -3,6 +3,7 @@
 
 #include "my_string.h"
 #include "types.h"
+#include "resources_fwd.h"
 #include "json_util.h"
 
 #define SSTARTUP_UNKNOWN    (ushort_t)-1
@@ -21,6 +22,23 @@
 #define SRETRIEVE_SYSTEM_ERROR  1
 #define SRETRIEVE_MEM_ERROR     2
 #define SRETRIEVE_UNKNOWN (ushort_t)-1
+
+typedef struct _adapterinfo
+{
+    wchar_t     *      name; // system name
+    unsigned char     *      desc; // description
+    len_small_t type;
+    len_t       received;
+    len_t       sent;
+    len_t       speed;
+} adapterinfo_t;
+
+typedef struct _adapters
+{
+    adapterinfo_t * data;
+    len_t size;
+
+} adapters_t;
 
 typedef struct _winService
 {
@@ -50,15 +68,16 @@ typedef struct _os
     len_small_t         WinMinor;
     len_small_t         BuildNumber;
     len_small_t         NumberOfProcessors;
-    wchar_t             *              ServicePack; // unused
-    wchar_t             *              Win32Dir;   // windows directory
-    wchar_t             *              TempDir;     // temporary directory
-    unix_time_t         *              LocalTime;   // time of computer
+    unix_time_t                         LocalTime;   // time of computer
+    wchar_t             *               ServicePack; // unused
+    wchar_t             *               Win32Dir;    // windows directory
+    wchar_t             *               TempDir;     // temporary directory
+    const char          *        MachineType;
+    const char          *        Processor;
 
-    const char *        MachineType;
-    const char *        Processor;
-
-    services_t          services; // all services;
+    services_t               services; // all services;
+    adapters_t               adapters; // all adapters;
+    struct resource_stats * resources;
     
     json_define_callback_type_to(_os, char*);
     json_define_callback_type_from(_os, char*);
@@ -75,4 +94,5 @@ POSInfo GetLatestOsInfo();
 void OSInfoFree(POSInfo * ptr);
 void GetWindowsVersion(POSInfo value);
 int GetAllWindowsServices(services_t *pack);
+int GetAdapters(POSInfo osPtr);
 #endif

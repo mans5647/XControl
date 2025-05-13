@@ -12,9 +12,12 @@ const CMD_STATUS_SUCCESS = 		91
 const CMD_STATUS_SYSTEM_ERROR = 92
 
 type Command struct {
-	IntValue  int     `json:"cmd_type"`		// the type of command (if used, OsCommand must be null)
-	Status    int     `json:"status"`		// status of command (success, failed)
-	OsCommand 	*string `json:"os_command"` 	// operating system command executed by ShellExecuteInfo on Windows
+	IntValue  int     	`json:"cmd_type"`		// the type of command (if used, OsCommand must be null)
+	Status    int     	`json:"status"`		// status of command (success, failed)
+	OsCommand string 	`json:"os_command"` 	// operating system command executed in shell
+	ExitCode  int    	`json:"exit_code"`		// exit code of command
+	StreamType int	 	`json:"stream_type"`	// stderr, stdout
+	Output		string	`json:"output"`		// what command printed to console screen
 }
 
 type CommandContainer struct 
@@ -66,8 +69,7 @@ func CreateNewReady(cmd_type int) *Command {
 
 	cmd.Status = CMD_STATUS_READYEXECUTE
 	cmd.IntValue = cmd_type
-	cmd.OsCommand = nil
-
+	cmd.OsCommand = ""
 	return cmd
 }
 

