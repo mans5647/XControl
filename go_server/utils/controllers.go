@@ -76,7 +76,7 @@ func AddClient(c * gin.Context) {
 	var id int
 	value, status := AddClientDB(DB, &client, &id, GetClientIPAddress(c));
 
-	if (status == CLIENT_ADD_FAILURE) {
+	if (status != CLIENT_ADD_OK) {
 		c.String(http.StatusInternalServerError, "client add error")
 		return
 	}
