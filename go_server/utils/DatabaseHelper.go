@@ -55,10 +55,6 @@ func AddClientDB(ins * gorm.DB, client * types.Client, id * int, ip string) (*ty
 		return FindClientByIpAddrDB(ins, ip), CLIENT_EXIST
 	}
 
-	if (client_exists(ins, client.ID)) {
-		return FindClientByIdDB(ins, client.ID), CLIENT_EXIST
-	}
-
 
 	client.UpdateTime = time.Now().Unix()
 	client.RemoteAddr = ip
